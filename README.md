@@ -1,47 +1,37 @@
-# syncio: asyncio, without await
+# syncio: asyncio, without async/await
 
 `asyncio` can look very intimidating to newcomers, because of the `async`/`await` syntax. Even
 experienced programmers can get caught in the "async hell", when awaiting a single async function
-propagates to the entire code base. Sometimes you wish you could call an async function just
-like a regular function, whether running in an event loop or not.
+propagates to the entire code base. Sometimes you wish you could call an async function just like a
+regular function, whether running in an event loop or not.
 
-`syncio` is an attempt to make both worlds, asynchronous and synchronous, play better together.
-By decorating a function, be it async or not, with `@sync`, you don't have to remember if you need
-to await it, you just always call it directly. This means there is not real difference anymore, any
-async function is also a regular function.
+`syncio` is an attempt to make both worlds, asynchronous and synchronous, play better together. By
+decorating a function with `@sync`, it is automatically awaited if needed. You can still launch it
+in the background with `asyncio.create_task`. Actually, it is auto-awaited only if it is the
+outer-most call.
+
+In the snippet of code below, you can see that while `wait` is an async function, it is not awaited
+in the `main` function, yet this code takes full advantage of `asyncio`'s features, like tasks
+running in the background. The `sync` decorator effectively stopped the viral effect of `async`.
 
 ```python
 import asyncio
-import time
-
-import syncio
 from syncio import sync
 
-
-# an async function decorated with @sync
-# can be called directly, without "await"
 @sync
-async def async_function():
-    await asyncio.sleep(1)
-    # or use syncio's sleep function:
-    # syncio.sleep(1)
-    print("async_function done")
+async def wait(s):
+    await asyncio.sleep(s)
+    print(f"Waited {s} second(s)")
 
-# this looks like a regular function (no async/await)
-# although async_function is async
 @sync
-def pure_syncio():
-    async_function()
-    print("pure_syncio done")
+def main():
+    asyncio.create_task(wait(2))  # launched in the background
+    wait(1)  # auto-awaited
+    wait(1)  # auto-awaited
 
-# decorating a regular function with @sync has no effect
-# this reduces mental overhead: you can always use @sync
-@sync
-def not_async():
-    time.sleep(1)
-    print("not_async done")
-
-async_function()
-pure_syncio()
-not_async()
+main()
+# prints:
+# Waited 1 second(s)
+# Waited 2 second(s)
+# Waited 1 second(s)
 ```
